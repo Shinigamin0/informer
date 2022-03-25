@@ -1,2 +1,2 @@
 # informer
-Bash script for server information extration
+Bash script for server information extraction
