@@ -1,9 +1,12 @@
 #!/bin/bash
 
 CONF_DIRECTORY="./CONF"
-FILE_CONF="$CONF_DIRECTORY/config.csv"
+FILE_CONF="$CONF_DIRECTORY/config.conf"
 
-source $FILE_CONF
+function clean {
+    cleaned="$(echo $1 | sed -e 's/\;/ /g' | sed -e ':a;N;$!ba;s/\n/,/g')"
+    echo $cleaned
+}
 
 function log {
     if [ "$debug" == "1" ];
@@ -13,95 +16,89 @@ function log {
 }
 
 function inicializar_directorio {
-	if [ ! -d "$1" ];
+	if [ ! -d $1 ];
 	then
-		mkdir -p "$1"
+		mkdir -p $1
 	fi
 }
 
-function inicializar {
-	inicializar_directorio $LOGS_DIRECTORY
-	inicializar_directorio $OUT_DIRECTORY
-	inicializar_directorio $TEMP_DIRECTORY
-	inicializar_directorio $REPORT_DIRECTORY
-	inicializar_directorio $CONF_DIRECTORY
-    inicializar_directorio $SCRIPTS_DIRECTORY
-
-	if [ ! -f "$FILE_CONF" ];
+function inicializar_archivo {
+	if [ ! -f $1 ];
 	then
-        echo 'debug=1' >> "$FILE_CONF"
-        echo 'ssh_ports=(22 57032)' >> "$FILE_CONF"
-        echo 'networks=(10.0.30.0 10.0.37.0 10.0.36.0)' >> "$FILE_CONF"
-        echo 'rdp_ports=(3389)' >> "$FILE_CONF"
-        echo 'TEMP_DIRECTORY="./TEMP"' >> "$FILE_CONF"
-        echo 'LOGS_DIRECTORY="./LOGS"' >> "$FILE_CONF"
-        echo 'OUT_DIRECTORY="./OUT"' >> "$FILE_CONF"
-        echo 'CONF_DIRECTORY="./CONF"' >> "$FILE_CONF"
-        echo 'SCRIPTS_DIRECTORY="./SCRIPTS"' >> "$FILE_CONF"
-        echo 'REPORT_DIRECTORY="$OUT_DIRECTORY/$(date +%d%m%y)"' >> "$FILE_CONF"
-        echo 'FILE=$REPORT_DIRECTORY/"informe.csv"' >> "$FILE_CONF"
-        echo 'FILE_VERTICAL=$REPORT_DIRECTORY/"informe_vertical.txt"' >> "$FILE_CONF"
-        echo 'FILE_FINAL_LIST=$TEMP_DIRECTORY/"servers_$(date +%d%m%y%H%M%S).csv"' >> "$FILE_CONF"
-        echo 'REBOOTS_REPORT=$REPORT_DIRECTORY/"informe_reinicios_$(date +%d%m%y).csv"' >> "$FILE_CONF"
-        echo 'LOG=$LOGS_DIRECTORY/"log_informe_$(date +%d%m%y).log"' >> "$FILE_CONF"
-        echo 'LOG_TIME=$LOGS_DIRECTORY/"log_informe_time_$(date +%d%m%y).log"' >> "$FILE_CONF"
-        echo 'FILE_LOG=$LOGS_DIRECTORY/"log_informe_$(date +%d%m%y).log"' >> "$FILE_CONF"
-        echo 'FILE_SERVERS=$TEMP_DIRECTORY/servers_$(date +%d%m%y)' >> "$FILE_CONF"
-        echo 'FILE_CREDENCIALES="$CONF_DIRECTORY/credentials.csv"' >> "$FILE_CONF"
-        echo 'FILE_IPS="$CONF_DIRECTORY/ips.csv"' >> "$FILE_CONF"
-        echo 'FILE_IPS_PORTS="$CONF_DIRECTORY/ips_ports.csv"' >> "$FILE_CONF"
-        echo 'FILE_IPS_PORTS_USER_PASS="$CONF_DIRECTORY/servers.csv"' >> "$FILE_CONF"
-        echo 'FILE_IPS_PORTS_USER_PASS_SO="$CONF_DIRECTORY/servers_ready.csv"' >> "$FILE_CONF"
-        echo 'FILE_BLACK_LIST="$CONF_DIRECTORY/blacklist.csv"' >> "$FILE_CONF"
+		touch $1
 	fi
+}
 
-	if [ ! -f "$FILE_BLACK_LIST" ];
-    then
-		touch $FILE_BLACK_LIST
-        echo "IP" >> "$FILE_BLACK_LIST"
-	fi
+function blackList {
+    log "Ingresando a metodo BlackList"
 
-	if [ ! -f "$FILE_CREDENCIALES" ];
+    res="no_existe"
+
+    INPUT=$FILE_BLACK_LIST
+    IFS=";"
+    
+    while read IP DES
+    do
+        if [ "$1" == "$IP" ] ;
         then
-                touch "$FILE_CREDENCIALES"
-		echo "user;password" >> "$FILE_CREDENCIALES"
-        fi
-        
-    if [ ! $(command -v nmap) ] || [ ! $(command -v ping) ] || [ ! $(command -v sshpass) ] ;
-    then
-        echo "Faltan comandos..."
-    fi
-}
-
-function isAlive {
-    res="yes"
-    ping -c 1 -w 5 "$1" &>/dev/null
-    if [ ! $? == 0 ]; 
-    then 
-        res="no"
-        log "host $1 no alcanzable."
-    else
-        log "host $1 alcanzable."
-    fi
+            res="existe"
+            log "El host $1, $res en la lista negra."
+        fi        
+    done<$INPUT
+    
     echo $res
 }
 
-function runScript {
-    log "Ingresando a rutina runScript con : $1 ."
-    out="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'bash -s' < $5)"
-    echo "$out"
-    log "Saliendo de rutina runScript."
+function inicializar_conf {
+	inicializar_directorio $CONF_DIRECTORY
+	echo 'debug=1' >> "$FILE_CONF"
+	echo 'ssh_ports=(22 57032)' >> "$FILE_CONF"
+	echo 'networks=(10.0.30.0)' >> "$FILE_CONF"
+	echo 'rdp_ports=(3389)' >> "$FILE_CONF"
+	echo 'TEMP_DIRECTORY=./TEMP' >> "$FILE_CONF"
+	echo 'LOGS_DIRECTORY=./LOGS' >> "$FILE_CONF"
+	echo 'OUTS_DIRECTORY=./OUTS' >> "$FILE_CONF"
+	echo 'SCRIPTS_DIRECTORY=./SCRIPTS' >> "$FILE_CONF"
+	echo 'REPORTS_DIRECTORY=$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)' >> "$FILE_CONF"
+	echo 'FILE_REPORT_HORIZONTAL=$REPORTS_DIRECTORY/informe_horizontal_$(date +%d%m%y-%H%M).csv' >> "$FILE_CONF"
+	echo 'FILE_REPORT_VERTICAL=$REPORTS_DIRECTORY/informe_vertical_$(date +%d%m%y-%H%M).txt' >> "$FILE_CONF"
+	echo 'FILE_FINAL_SERVERS_LIST=$TEMP_DIRECTORY/servers_$(date +%d%m%y%H%M%S).csv' >> "$FILE_CONF"
+	echo 'FILE_LOG=$LOGS_DIRECTORY/log_informe_$(date +%d%m%y).log' >> "$FILE_CONF"
+	echo 'FILE_SERVERS=$TEMP_DIRECTORY/servers_$(date +%d%m%y)' >> "$FILE_CONF"
+	echo 'FILE_CREDENTIALS=$CONF_DIRECTORY/credentials.csv' >> "$FILE_CONF"
+	echo 'FILE_IPS=$CONF_DIRECTORY/ips.csv' >> "$FILE_CONF"
+	echo 'FILE_IPS_PORTS=$CONF_DIRECTORY/ips_ports.csv' >> "$FILE_CONF"
+	echo 'FILE_IPS_PORTS_USER_PASS=$CONF_DIRECTORY/ips_ports_user_pass.csv' >> "$FILE_CONF"
+	echo 'FILE_IPS_PORTS_USER_PASS_SO=$CONF_DIRECTORY/ips_ports_user_pass_so.csv' >> "$FILE_CONF"
+	echo 'FILE_BLACK_LIST=$CONF_DIRECTORY/blacklist.csv' >> "$FILE_CONF"
 }
 
-function getCredenciales { 
-    log "Ingresando a getCredenciales."
-    INPUT=$FILE_CREDENCIALES
+
+function inicializar_estructura {
+	while read line;
+	do
+		if [[ "$(echo $line | awk -F'=' '{print $1}')" == *"DIRECTORY"* ]];
+		then
+			var=$(echo $line | awk -F'=' '{print $1}')
+            inicializar_directorio ${!var}
+		elif [[ "$line" == *"FILE"* ]];
+		then
+			var=$(echo $line | awk -F'=' '{print $1}')
+            inicializar_archivo ${!var}
+		fi
+	done < $FILE_CONF
+}
+
+
+function getAccessData { 
+    log "Ingresando a ${FUNCNAME[0]}."
+    INPUT=$FILE_CREDENTIALS
     IFS=";"
     while read USER PASS 
     do
         if [ "$debug" == "1" ];
         then
-            log "Probando $USER y $PASS en server : $1:$2"
+            log "Probando $USER y $(echo $PASS | base64) en server : $1:$2"
         fi
         hi="$(sshpass -p "$PASS" ssh -t -o StrictHostKeyChecking=no -n -p "$2" "$USER"@"$1" "echo hi 2>/dev/null" 2>/dev/null)"
         if [ "$hi" == "hi" ];
@@ -111,13 +108,102 @@ function getCredenciales {
             break
         fi
     done<$INPUT
+	
     if [ "$credential" == "" ];
     then
-        log "No se puede ingresar al Servidor $1:$2 con las credenciales suministradas."
+        log "Credenciales para servidor $1:$2 invalidas."
     else
         echo $credential
     fi
-    log "Saliendo de método getCredenciales."
+}
+
+function generarIps {
+    for i in "${networks[@]}"
+    do
+        filtro=$(echo $i | awk -F'.' '{print $1"."$2"."$3"."}')
+		nmap -sL -n $i/24 | grep "$filtro" | grep -vw "${filtro}0\|${filtro}1\|${filtro}255" | awk '{print $5}'>> $FILE_IPS
+    done
+}
+
+function getAccessPort {
+    log "Ingrensando a método : ${FUNCNAME[0]} con parámetro : $1"
+	
+	for i in "${ssh_ports[@]}"
+	do
+		flag=$(nmap -Pn -host-timeout 20s -p $i $1|grep 'open'|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
+		if [ ! "$flag" == "" ] ;
+		then
+			port="SSH;$i"
+			break
+		fi
+	done
+	
+	if [ "$port" == "" ];
+	then
+		for j in "${rdp_ports[@]}"
+		do
+			flag=$(nmap -Pn -host-timeout 20s -p $j $1|grep 'open\|filtered'|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
+			if [ ! "$flag" == "" ] ;
+			then
+				port="RDP;$j"
+				break
+			fi
+
+			if [ "$port" == "" ];
+			then
+				port="NO_ACCESS_PROTOCOL;NO_ACCESS_PORT"
+			fi
+		done
+	fi
+    echo "$port"
+}
+
+function generarPuertosAccesoServidores {
+    log "Ingresando a ${FUNCNAME[0]}"
+    IFS=";"
+    while read IP;
+    do
+        PUERTO=$(getAccessPort $IP)
+        log "Puerto de acceso indentificado para servidor $IP : $PUERTO..."
+        echo "$IP;$PUERTO" >> $FILE_IPS_PORTS
+    done < $FILE_IPS
+}
+
+function generarDatosAccesoServidores {
+    log "Ingresando a ${FUNCNAME[0]}"
+    IFS=";"
+    while read IP PROTOCOL PUERTO;
+    do
+        if [ "$PROTOCOL" == "SSH" ];
+        then
+            if [ "$(blackList $IP)" == "no_existe" ];
+            then
+                credentials="$(getAccessData $IP $PUERTO)"
+                if [ ! $credentials == "" ];
+                then
+                    user="$(echo "$credentials"| awk '{print $1}')"
+                    pass="$(echo "$credentials" | awk '{print $2}')"
+                else
+                    user="unknown"
+                    pass="unknown"
+                fi
+                echo "$IP;$PROTOCOL;$PUERTO;$user;$pass" >> $FILE_IPS_PORTS_USER_PASS
+            fi
+        fi
+    done < $FILE_IPS_PORTS
+}
+
+function generarSoServidores {
+    log "Ingresando a ${FUNCNAME[0]}"
+    IFS=";"
+    while read IP PROTOCOL PUERTO USER PASS;
+    do
+        if [ ! "$USER" == "unknown" ];
+        then
+            SO="$(getSo $IP $PUERTO $PASS $USER)"
+			echo "$IP;$PROTOCOL;$PUERTO;$USER;$PASS;$SO" >> $FILE_IPS_PORTS_USER_PASS_SO
+        fi
+    done < $FILE_IPS_PORTS_USER_PASS
 }
 
 function getHosts {
@@ -187,58 +273,6 @@ function getCrons {
     echo "$cleaned"
 }
 
-function getSshPort {
-    log "Ingrensando a método getSshPort."
-    alive=$(isAlive $1)
-    puerto_ssh="NO_SSH"
-    
-    if [ "$alive" == "yes" ];
-    then
-    
-        for i in "${ssh_ports[@]}"
-        do
-            log "Validando IP : $1 Puerto : $i"
-            bandera=$(nmap -host-timeout 20s -p $i $1|grep open|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
-            if [ ! "$bandera" == "" ] ;
-            then
-                puerto_ssh=$i
-                break
-            fi
-        done
-    elif [ "$alive" == "no" ];
-    then
-        puerto_ssh="NO_PING"
-    fi
-    log "Puerto ssh : $puerto_ssh de server $1."
-    log "Saliendo de método getSshPort."
-    echo "$puerto_ssh"
-}
-
-function getRdpPort {
-    log "Ingrensando a método getRdpPort."
-    alive=$(isAlive $1)
-    puerto_rdp="NO_RDP"
-        
-    if [ "$alive" == "yes" ];
-    then           
-        for i in "${rdp_ports[@]}"
-        do
-            bandera=$(nmap -host-timeout 20s -p $i $1|grep open|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
-            if [ ! "$bandera" == "" ] ;
-            then
-                puerto_ssh=$i
-                break
-            fi
-        done 
-    elif [ "$alive" == "no" ];
-    then
-        puerto_rdp="NO_PING"
-    fi
-    log "Puerto rdp : $puerto_rdp de server $1."
-    log "Saliendo de método getRdpPort."
-    echo "$puerto_rdp"
-}
-
 function getOpenPorts {
     log "Ingresando a metodo OpenPorts"
     if [ "$2" == "" ] && [ "$3" == "" ] && [ "$4" == "" ];
@@ -260,157 +294,6 @@ function getConections {
     connections=$(sshpass -p $3 ssh -o ConnectTimeout=60 -q -n -p $2 $4@$1 netstat -nat | awk '{print $6}'| sed -e '1,2d' | sort | uniq -c | sort -r| awk '{print $2":"$1}')
     cleaned="$(clean $connections)"
     echo "$cleaned"
-}
-
-
-function generarListaServidores_local {
-    log "Ingresando a método generarListaServidores local."
-    IFS=";"
-    IP="$(hostname -I 2>/dev/null |sed -e 's/ //g')"
-    if [ "$IP" == "" ];
-    then
-        IP="$(ifconfig 2>/dev/null |awk '{print $2}' |grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}" 2>/dev/null |head -n |sed -e 's/ //g')"
-        if [ "$IP" == "" ];
-        then
-            IP="$(ip a |awk '{print $2}' |grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}" 2>/dev/null |tail -n 1 |sed -e 's/ //g')"
-        fi
-    fi
-    PUERTO=$(getSshPort $IP)
-    log "Ingresando a servidor $IP a traves de $PUERTO..."
-    echo "$IP;$PUERTO" >> $FILE_IPS_PORTS
-    while read IP PUERTO
-    do
-        if [ "$PUERTO" == "NO_PING" ] || [ "$PUERTO" == "NO_SSH" ];
-        then
-            log "Servidor $IP reporta novedad $PUERTO."
-            echo "$IP;$PUERTO;NA;NA" >> $FILE_IPS_PORTS_USER_PASS
-        else
-            if [ "$(blackList $IP)" == "existe" ];
-            then
-                log "Servidor $IP:$PUERTO existe en lista negra: $FILE_BLACK_LIST."
-            else
-                credentials="$(getCredenciales $IP $PUERTO)"
-                if [ ! $credentials == "" ];
-                then
-                    user="$(echo "$credentials"| awk '{print $1}')"
-                    pass="$(echo "$credentials" | awk '{print $2}')"
-                else
-                    user="unknown"
-                    pass="unknown"
-                fi
-                echo "$IP;$PUERTO;$user;$pass;" >> $FILE_IPS_PORTS_USER_PASS
-            fi
-        fi
-    done < $FILE_IPS_PORTS
-
-    log "Saliendo de método generarListaServidores local."
-}
-
-function generarListaServidores_file {
-    log "Ingresando a método generarListaServidores por arhivo."
-    IFS=";"
-    while read IP
-    do
-        PUERTO=$(getSshPort $IP)
-        log "Ingresando a servidor $IP a traves de $PUERTO..."
-        echo "$IP;$PUERTO" >> $FILE_IPS_PORTS
-    done < $FILE_IPS
-
-    while read IP PUERTO
-    do
-        if [ "$PUERTO" == "NO_PING" ] || [ "$PUERTO" == "NO_SSH" ];
-        then
-            log "Servidor $IP reporta novedad $PUERTO."
-            echo "$IP;$PUERTO;NA;NA" >> $FILE_IPS_PORTS_USER_PASS
-        else
-            if [ "$(blackList $IP)" == "existe" ];
-            then
-                log "Servidor $IP:$PUERTO existe en lista negra: $FILE_BLACK_LIST."
-            else
-                credentials="$(getCredenciales $IP $PUERTO)"
-                if [ ! $credentials == "" ];
-                then
-                    user="$(echo "$credentials"| awk '{print $1}')"
-                    pass="$(echo "$credentials" | awk '{print $2}')"
-                else
-                    user="unknown"
-                    pass="unknown"
-                fi
-                echo "$IP;$PUERTO;$user;$pass;" >> $FILE_IPS_PORTS_USER_PASS
-            fi
-        fi
-    done < $FILE_IPS_PORTS
-
-    log "Saliendo de método generarListaServidores."
-}
-
-function generarListaServidores_full {
-    
-    log "Ingresando a método generarListaServidores."
-    
-    for i in "${networks[@]}"
-    do
-        filtro=$(echo $i | awk -F'.' '{print $1"."$2"."$3"."}')
-        nmap  -sn  $i/24 | grep "$filtro" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort | uniq >> $FILE_IPS
-    done
-
-    IFS=";"
-    while read IP
-    do  
-        PUERTO=$(getSshPort $IP)
-        log "Ingresando a servidor $IP a traves de $PUERTO..."
-        echo "$IP;$PUERTO" >> $FILE_IPS_PORTS
-    done < $FILE_IPS
-    
-    while read IP PUERTO
-    do  
-        if [ "$PUERTO" == "NO_PING" ] || [ "$PUERTO" == "NO_SSH" ];
-        then
-            log "Servidor $IP reporta novedad $PUERTO."
-            echo "$IP;$PUERTO;NA;NA" >> $FILE_IPS_PORTS_USER_PASS
-        else
-            if [ "$(blackList $IP)" == "existe" ];
-            then 
-                log "Servidor $IP:$PUERTO existe en lista negra: $FILE_BLACK_LIST."
-            else
-                credentials="$(getCredenciales $IP $PUERTO)"
-                if [ ! $credentials == "" ];
-                then
-                    user="$(echo "$credentials"| awk '{print $1}')"
-                    pass="$(echo "$credentials" | awk '{print $2}')"
-                else
-                    user="unknown"
-                    pass="unknown"
-                fi
-                echo "$IP;$PUERTO;$user;$pass;" >> $FILE_IPS_PORTS_USER_PASS
-            fi
-        fi
-
-    done < $FILE_IPS_PORTS
-    
-    log "Saliendo de método generarListaServidores."
-}
-
-function generarSistemaOperativo {
-    log "Ingresando a método generarSistemaOperativo."
-    IFS=";"
-    while read IP PUERTO USER PASS
-    do  
-        if [ "$PUERTO" == "NO_PING" ] || [ "$PUERTO" == "NO_SSH" ];
-        then
-            log "Servidor $IP reporta novedad $PUERTO."
-            echo "$IP;$PUERTO;NA;NA;NA" >> $FILE_IPS_PORTS_USER_PASS_SO
-        else
-            if [ "$(blackList $IP)" == "existe" ];
-            then 
-                log "Servidor $IP:$PUERTO existe en lista negra: $FILE_BLACK_LIST."
-            else
-                SO="$(getSo $IP $PUERTO $PASS $USER  2>/dev/null)"
-                echo "$IP;$PUERTO;$USER;$PASS;$SO;" >> $FILE_IPS_PORTS_USER_PASS_SO
-            fi
-        fi
-    done < $FILE_IPS_PORTS_USER_PASS
-    log "Saliendo de método generarSistemaOperativo."
 }
 
 function getSshUsers {
@@ -442,115 +325,35 @@ function getNisService {
     echo "$cleaned"
 }
 
-function getSo_old {
-log "Ingresando a getSo."
-    so="Indefinido"
-    if [ ! "$1" == "" ] && [ ! "$2" == "" ] && [ ! "$3" == "" ] && [ ! "$4" == "" ];
-    then
-        log "Datos completos para getSo."
-        log "Probando RH"
-        redhat_file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/redhat-release |sed 's/ //g' 2>/dev/null)"
-        if [ ! "$redhat_file" == ""  ];
-        then
-            so="$redhat_file"
-        else
-            log "Probando DEB"
-            debian_file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 lsb_release -a 2>/dev/null | grep Description 2>/dev/null |awk '{print $2" "$3" "$4" "$5}' |sed 's/ //g' 2>/dev/null)"
-            if [ ! "$debian_file" == "" ];
-            then
-                so="$debian_file"
-            else
-                log "Probando OSR"
-                osrelease="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/os-release | grep PRETTY_NAME  | awk -F'=' '{print $2}' | sed 's/ //g' | sed 's/\"//g'  2>/dev/null)"
-                if [ ! "$osrelease" == "" ];
-                then
-                     so="$osrelease"
-                else
-                    log "Probando HCTL"
-                    hostnamectl="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 hostnamectl | grep "Operating System" | awk -F':' '{print $2}' | sed 's/ //g'  2>/dev/null)"
-                    if [ ! "$hostnamectl" == "" ];
-                    then 
-                        so="$hostnamectl"
-                    else
-                         if [ ! $(command -v nmap) == "" ] && [ ! "$1" == "" ];
-                         then
-                            log "Probando NMAP"
-                            nmap_so="$(sudo nmap -O -sV $1 | grep "OS details" | awk -F':' '{print $2}' | sed -e 's/ //g' 2>/dev/null)"
-                            if [ ! "$nmap_so"  == "" ];
-                            then
-                                so="$nmap_so"
-                            else
-                                log "NO se pudo indentificar el SO del server $1"
-                            fi
-                         else
-                            log "NO se pudo indentificar el SO del server $1"
-                         fi
-                    fi
-                fi
-            
-            fi
-        fi        
-    else
-        log "NO se pudo indentificar el SO del server $1, faltan parametros."
-    fi
-    log "Saliendo de getSo."
-    echo $so
-}
-
-
 function getSo {
-log "Ingresando a getSo."
-    so="Indefinido"
-    if [ ! "$1" == "" ] && [ ! "$2" == "" ] && [ ! "$3" == "" ] && [ ! "$4" == "" ];
-    then
-        log "Datos completos para getSo."
-        log "Probando RH"
-        redhat_file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/redhat-release |sed 's/ //g' 2>/dev/null)"
-        if [ ! "$redhat_file" == ""  ];
-        then
-            so="$redhat_file"
-        else
-            log "Probando DEB"
-            debian_file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 lsb_release -a 2>/dev/null | grep Description 2>/dev/null |awk '{print $2" "$3" "$4" "$5}' |sed 's/ //g' 2>/dev/null)"
-            if [ ! "$debian_file" == "" ];
-            then
-                so="$debian_file"
-            else
-                log "Probando OSR"
-                osrelease="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/os-release | grep PRETTY_NAME  | awk -F'=' '{print $2}' | sed 's/ //g' | sed 's/\"//g'  2>/dev/null)"
-                if [ ! "$osrelease" == "" ];
-                then
-                     so="$osrelease"
-                else
-                    log "Probando HCTL"
-                    hostnamectl="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 hostnamectl | grep "Operating System" | awk -F':' '{print $2}' | sed 's/ //g'  2>/dev/null)"
-                    if [ ! "$hostnamectl" == "" ];
-                    then 
-                        so="$hostnamectl"
-                    else
-                        so="Indefinido"
-                         #if [ ! $(command -v nmap) == "" ] && [ ! "$1" == "" ];
-                         #then
-                         #   log "Probando NMAP"
-                         #   nmap_so="$(nmap -O -sV $1 | grep "OS details" | awk -F':' '{print $2}' | sed -e 's/ //g' 2>/dev/null)"
-                         #   if [ ! "$nmap_so"  == "" ];
-                         #   then
-                         #       so="$nmap_so"
-                         #   else
-                         #       log "NO se pudo indentificar el SO del server $1"
-                         #   fi
-                         #else
-                            log "NO se pudo indentificar el SO del server $1"
-                         #fi
-                    fi
-                fi
-            
-            fi
-        fi        
-    else
-        log "NO se pudo indentificar el SO del server $1, faltan parametros."
-    fi
-    log "Saliendo de getSo."
+	log "Ingresando a método : ${FUNCNAME[0]} con parámetro $1"
+	redhat_file=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "cat /etc/redhat-release 2>/dev/null |sed 's/ //g'" )
+	if [ ! "$redhat_file" == ""  ];
+	then
+		so="$redhat_file"
+	else
+		debian_file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 lsb_release -a 2>/dev/null | grep Description 2>/dev/null |awk '{print $2" "$3" "$4" "$5}' |sed 's/ //g' 2>/dev/null)"
+		if [ ! "$debian_file" == "" ];
+		then
+			so="$debian_file"
+		else
+			osrelease="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/os-release | grep PRETTY_NAME  | awk -F'=' '{print $2}' | sed 's/ //g' | sed 's/\"//g'  2>/dev/null)"
+			if [ ! "$osrelease" == "" ];
+			then
+				 so="$osrelease"
+			else
+				hostnamectl="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 hostnamectl | grep "Operating System" | awk -F':' '{print $2}' | sed 's/ //g'  2>/dev/null)"
+				if [ ! "$hostnamectl" == "" ];
+				then 
+					so="$hostnamectl"
+				else
+					so="unknown"
+					log "NO se pudo indentificar el SO del server $1"
+				fi
+			fi
+		fi
+	fi        
+
     echo $so
 }
 
@@ -634,42 +437,6 @@ function getIps {
     echo "$(echo $ips | sed -e 's/\;/ /g' | sed -e ':a;N;$!ba;s/\n/,/g')"
 }
 
-function clean {
-    cleaned="$(echo $1 | sed -e 's/\;/ /g' | sed -e ':a;N;$!ba;s/\n/,/g')"
-    echo $cleaned
-}
-
-function blackList {
-    log "Ingresando a metodo BlackList"
-
-    res="no_existe"
-
-    INPUT=$FILE_BLACK_LIST
-    IFS=";"
-    
-    while read IP DES
-    do
-        if [ "$1" == "$IP" ] ;
-        then
-            res="existe"
-            log "El host $1, $res en la lista negra."
-        fi        
-    done<$INPUT
-    
-    echo $res
-}
-
-function windows {
-    log "Ingresando a metodo Windows"
-    res=""
-    busqueda=$(cat $FILE_WINDOWS | grep -w "$1")
-    if [ "$busqueda" != "" ] ;
-    then
-        res="windows"
-    fi
-    echo $res
-}
-
 function getDns {
     log "Ingresando a metodo getDns"
 
@@ -696,21 +463,6 @@ function getDns {
 
     echo "$cleaned"
     
-}
-
-function file_exist {
-    log "Validando existencia de archivo $5 en $1"
-    file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  cat $5 2>/dev/null)"
-    
-    log "*$file*"
-    if [ ! "$file" == "" ];
-    then
-        echo SI
-        log "archivo $5 EXISTE en $1"
-    else
-        echo NO
-        log "archivo $5 NO existe en $1"
-    fi
 }
 
 function getMysqlVersion {
@@ -808,6 +560,21 @@ function traer_archivo {
         fi 
         log "Saliendo de equipo : $IP"
     done<$FILE_IPS_PORTS_USER_PASS
+}
+
+function file_exist {
+    log "Validando existencia de archivo $5 en $1"
+    file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  cat $5 2>/dev/null)"
+    
+    log "*$file*"
+    if [ ! "$file" == "" ];
+    then
+        echo SI
+        log "archivo $5 EXISTE en $1"
+    else
+        echo NO
+        log "archivo $5 NO existe en $1"
+    fi
 }
  
  function getJavaTomcat {
@@ -969,68 +736,81 @@ function generarInformeServidores {
     
 }
 
-function send_command {
-    sshpass -p $1 ssh -t -o ConnectTimeout=10 -q -n -p $2 $3@$4 "$5"
-}
 
+case $1 in
+  start)
+    echo "Buscando configuración en : $FILE_CONF"
+	if [ -f $FILE_CONF ];
+	then
+		source $FILE_CONF
+		echo "Archivo de configuración cargado exitosamente : $FILE_CONF"
+	else
+		echo "Archivo de configuración no encontrado."
+		echo "Generando archivo de configuración."
+		inicializar_conf
+		if [ -f $FILE_CONF ];
+		then
+			echo "Archivo de configuración creado exitosamente."
+			source $FILE_CONF
+			echo "Archivo de configuración cargado exitosamente : $FILE_CONF"
+		else
+			echo "Imposible cargar archivo de configuración : $FILE_CONF"
+		fi
+	fi
+	inicializar_estructura
+    ;;
+  set-list)
+		source $FILE_CONF
+		if [ "$2" == "" ];
+		then
+			echo "Usando Ips en el archivo : $FILE_IPS"
+		elif [ "$2" == "scan" ];
+		then
+			echo "Generando Ips de los segmentos en : ${networks[*]}"
+			generarIps
+			echo "Ips generadas en archivo : $FILE_IPS : $(cat $FILE_IPS | wc -l)"
+		else
+			if [ ! "$2" == "" ] && [ -f "$2" ];
+			then
+				echo "Usando Ips en el archivo : $2"
+				FILE_IPS="$2"
+				sed -i '/FILE_IPS=/d' $FILE_CONF
+				echo "FILE_IPS=$2" >> $FILE_CONF
+			fi
+		fi
+    ;;
+  build)
+		source $FILE_CONF
+		generarPuertosAccesoServidores
+		generarDatosAccesoServidores
+		generarSoServidores
+  ;;
+  generate-reports)
 
-#case $1 in
-#  inicializar)
-#     inicializar
-#    ;;
-#  full)
-#    generarListaServidores_full
-#    generarSistemaOperativo
-#    generarInformeServidores
-#    ;;
-#  file)
-#    if [ -f "$2" ];
-#    then
-#	    log "Archivo $2 existe."
-#	    FILE_IPS="$2"
-#	    generarListaServidores_file
-#	    generarSistemaOperativo
-#        generarInformeServidores
-#    else
-#	    log "Archivo $2 NO existe."
-#	    echo "Archivo $2 NO existe"
-#    fi
-#    ;;
-# local)
-#    generarListaServidores_local
-#    generarSistemaOperativo
-#    generarInformeServidores
-#    ;;
-# validacion)
-#    if [ -f "$2" ];
-#    then
-#	    log "Archivo $2 existe."
-#	    FILE_IPS="$2"
-#	    generarListaServidores_file
-#	    generarSistemaOperativo
-#        
-#    else
-#	    log "Archivo $2 NO existe."
-#	    echo "Archivo $2 NO existe"
-#    fi
-#    ;;
-#  *)
-#    echo "informe [local/full/file file_path]"
-#    echo "local : genera informe del servidor donde se ejecuta."
-#    echo "full : en atención a las variables escanea las redes y ejecuta el informe con los nodos vivos en dichas redes."
-#    echo "file : en atención a un listado de ips que entra como parámetro genera el informe."
-#    echo "validacion: solo velida si se tiene acceso por ssh a la lista de servidores."
-#    ;;
-#esac
-
-if [ -f "$2" ];
-then
-    log "Archivo $2 existe."
-    FILE_IPS="$2"
-    generarListaServidores_file
+    ;;
+ local)
+    generarListaServidores_local
     generarSistemaOperativo
     generarInformeServidores
-else
-    log "Archivo $2 NO existe."
-    echo "Archivo $2 NO existe"
-fi
+    ;;
+ validacion)
+    if [ -f "$2" ];
+    then
+	    log "Archivo $2 existe."
+	    FILE_IPS="$2"
+	    generarListaServidores_file
+	    generarSistemaOperativo
+        
+    else
+	    log "Archivo $2 NO existe."
+	    echo "Archivo $2 NO existe"
+    fi
+    ;;
+  *)
+    echo "./informer.sh start : inicia la configuración y las estructura de carpeta necesarias para funcionar"
+    echo "./informer.sh set-list [vacio|scan|ruta_file] : define de donde se va a sacar la lista de IPs, vacio asigna el archivo por defecto, scan genera las Ips de los segmentos en el archivos de configuración , finalmente la ruta asigna dicho archivo"
+    echo "./informer.sh build : crea la base de datos de servidores."
+    echo "file : en atención a un listado de ips que entra como parámetro genera el informe."
+    echo "validacion: solo velida si se tiene acceso por ssh a la lista de servidores."
+    ;;
+esac
