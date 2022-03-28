@@ -35,13 +35,11 @@ function inicializar_archivo {
 }
 
 function blackList {
-    log "Ingresando a metodo BlackList"
-
+    log "Ingresando a ${FUNCNAME[0]}."
+	inicializar_archivo $FILE_BLACK_LIST
     res="no_existe"
-
     INPUT=$FILE_BLACK_LIST
     IFS=";"
-    
     while read IP DES
     do
         if [ "$1" == "$IP" ] ;
@@ -50,7 +48,6 @@ function blackList {
             log "El host $1, $res en la lista negra."
         fi        
     done<$INPUT
-    
     echo $res
 }
 
@@ -60,12 +57,13 @@ function inicializar_conf {
 	echo 'ssh_ports=(22 57032)' >> "$FILE_CONF"
 	echo 'networks=(10.0.30.0)' >> "$FILE_CONF"
 	echo 'rdp_ports=(3389)' >> "$FILE_CONF"
+	echo 'backups=(/etc /var /home /root /opt/bacula)' >> "$FILE_CONF"
 	echo 'TEMP_DIRECTORY=./TEMP' >> "$FILE_CONF"
 	echo 'LOGS_DIRECTORY=./LOGS' >> "$FILE_CONF"
 	echo 'OUTS_DIRECTORY=./OUTS' >> "$FILE_CONF"
+	echo 'BACKUPS_DIRECTORY=./BACKUPS' >> "$FILE_CONF"
 	echo 'SCRIPTS_DIRECTORY=./SCRIPTS' >> "$FILE_CONF"
 	echo 'REPORTS_DIRECTORY=$OUTS_DIRECTORY/$(date +%d%m%y)' >> "$FILE_CONF"
-	echo 'REPORTS_DIRECTORY_FINAL=$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)' >> "$FILE_CONF"
 	echo 'FILE_REPORT_HORIZONTAL=$REPORTS_DIRECTORY/informe_horizontal_$(date +%d%m%y).csv' >> "$FILE_CONF"
 	echo 'FILE_REPORT_VERTICAL=$REPORTS_DIRECTORY/informe_vertical_$(date +%d%m%y).txt' >> "$FILE_CONF"
 	echo 'FILE_REPORT_STATISTICS=$REPORTS_DIRECTORY/informe_estadisticas_$(date +%d%m%y).txt' >> "$FILE_CONF"
@@ -78,7 +76,6 @@ function inicializar_conf {
 	echo 'FILE_BLACK_LIST=$CONF_DIRECTORY/blacklist.csv' >> "$FILE_CONF"
 }
 
-
 function inicializar_estructura {
 	while read line;
 	do
@@ -86,10 +83,10 @@ function inicializar_estructura {
 		then
 			var=$(echo $line | awk -F'=' '{print $1}')
             inicializar_directorio ${!var}
-		elif [[ "$line" == *"FILE"* ]];
-		then
-			var=$(echo $line | awk -F'=' '{print $1}')
-            inicializar_archivo ${!var}
+		#elif [[ "$line" == *"FILE"* ]];
+		#then
+		#	var=$(echo $line | awk -F'=' '{print $1}')
+        #    inicializar_archivo ${!var}
 		fi
 	done < $FILE_CONF
 }
@@ -123,6 +120,7 @@ function getAccessData {
 }
 
 function generarIps {
+	log "Ingresando a ${FUNCNAME[0]}."
     for i in "${networks[@]}"
     do
         filtro=$(echo $i | awk -F'.' '{print $1"."$2"."$3"."}')
@@ -212,28 +210,28 @@ function generarSoServidores {
 }
 
 function getHosts {
-    log "Ingresando a metodo getHosts"
+    log "Ingresando a ${FUNCNAME[0]}."
     hosts=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/hosts | grep -v "#")
     cleaned="$(clean $hosts)"
     echo "$cleaned"
 }
 
 function getUsers {
-    log "Ingresando a metodo getUsers"
+    log "Ingresando a ${FUNCNAME[0]}."
     users=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/passwd | awk -F':' '{print $1}' 2>/dev/null)
     cleaned="$(clean $users)"
     echo "$cleaned"
 }
 
 function getGroups {
-    log "Ingresando a metodo getGroups"
+    log "Ingresando a ${FUNCNAME[0]}."
     groups=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'cat /etc/group 2>/dev/null' 2>/dev/null)
     cleaned="$(clean $groups)"
     echo "$cleaned"
 }
 
 function getEnv {
-    log "Ingresando a metodo getEnv"
+    log "Ingresando a ${FUNCNAME[0]}."
     env=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'env 2>/dev/null' 2>/dev/null)
     if [ "$env" == "" ];
     then
@@ -244,7 +242,7 @@ function getEnv {
 }
 
 function getRoutes {
-    log "Ingresando a metodo getRoutes"
+    log "Ingresando a ${FUNCNAME[0]}."
     routes=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'route -n 2>/dev/null' 2>/dev/null)
     if [ "$routes" == "" ];
     then
@@ -258,28 +256,28 @@ function getRoutes {
 }
 
 function getActiveServices {
-    log "Ingresando a metodo getActiveServices"
+    log "Ingresando a ${FUNCNAME[0]}."
     activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'systemctl list-units --type=service --state=active 2>/dev/null' 2>/dev/null)
     echo $activeServices
 
 }
 
 function getSesStatus {
-    log "Ingresando a metodo getSesStatus"
+    log "Ingresando a ${FUNCNAME[0]}."
     sestatus=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'sestatus 2>/dev/null' 2>/dev/null)
     echo $sestatus
 
 }
 
 function getCrons {
-    log "Ingresando a metodo getCrons"
+    log "Ingresando a ${FUNCNAME[0]}."
     crons=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'cat /var/spool/cron/* | grep -v "#" 2>/dev/null' 2>/dev/null)
     cleaned="$(clean $crons)"
     echo "$cleaned"
 }
 
 function getOpenPorts {
-    log "Ingresando a metodo OpenPorts"
+    log "Ingresando a ${FUNCNAME[0]}."
     if [ "$2" == "" ] && [ "$3" == "" ] && [ "$4" == "" ];
     then
         ports="$(nmap --host-timeout 1m -p 1-65535 $1 | grep 'open' | awk '{print $1" "$3}' 2>/dev/null)"
@@ -295,14 +293,14 @@ function getOpenPorts {
 }
 
 function getConections {
-    log "Ingresando a metodo getConections"
+    log "Ingresando a ${FUNCNAME[0]}."
     connections=$(sshpass -p $3 ssh -o ConnectTimeout=60 -q -n -p $2 $4@$1 netstat -nat | awk '{print $6}'| sed -e '1,2d' | sort | uniq -c | sort -r| awk '{print $2":"$1}')
     cleaned="$(clean $connections)"
     echo "$cleaned"
 }
 
 function getSshUsers {
-    log "Ingresando a metodo getSshUsers"
+    log "Ingresando a ${FUNCNAME[0]}."
     ssh=$(sshpass -p "$3" ssh -o ConnectTimeout=10 -q -n -p $2 "$4"@"$1" cat /etc/security/ssh_us.allow 2>/dev/null 2>/dev/null)
     if [ "$ssh" == '' ];
     then
@@ -316,7 +314,7 @@ function getSshUsers {
 }
 
 function getNisService {
-    log "Ingresando a metodo getNisService"
+    log "Ingresando a ${FUNCNAME[0]}."
     nis=$(sshpass -p "$3" ssh -t -o ConnectTimeout=10 -q -n -p $2 "$4"@"$1" " /etc/init.d/ypbind status 2>/dev/null" 2>/dev/null)
     if [ "$nis" == '' ];
     then
@@ -363,8 +361,7 @@ function getSo {
 }
 
 function getPostgresqlService {
-    log "Ingresando a metodo getPostgresqlService"
-
+    log "Ingresando a ${FUNCNAME[0]}."
     psql=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "/etc/init.d/postgresql* status 2>/dev/null" 2>/dev/null)
     
     if [ "$psql" == '' ];
@@ -386,50 +383,48 @@ function getPostgresqlService {
 }
 
 function getRam {
-    log "Ingresando a metodo getRam"
+    log "Ingresando a ${FUNCNAME[0]}."
     memory=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 echo $(grep MemTotal /proc/meminfo |awk '{print $2}') / 1024^2 | bc 2>/dev/null)
     cleaned="$(clean $memory)"
     echo $cleaned"GB"
 }
 
 function getCpuModel {
-    log "Ingresando a metodo getCpuModel"
+    log "Ingresando a ${FUNCNAME[0]}."
     model="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /proc/cpuinfo|grep 'odel name'|sed -e 's/ //g' -e 's/\t//g' -e 's/\r$//' |awk -F':' '{print $2}'|uniq)"
     cleaned="$(clean $model)"
     echo $cleaned
 }
 
 function getCpus {
-    log "Ingresando a metodo getCpus"
+    log "Ingresando a ${FUNCNAME[0]}."
     cpus="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /proc/cpuinfo|grep processor|awk '{print $1}'|sed -e 's/ //g'|wc -l)"
     echo $cpus"CPU" 
 
 }
 
 function getMountPoints {
-    log "Ingresando a metodo getMountPoints"
+    log "Ingresando a ${FUNCNAME[0]}."
     disk=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/fstab | grep -v '#'  2>/dev/null)
     echo "$disk"
 }
 
 function getFileSystem {
-    log "Ingresando a metodo getFileSystem"
+    log "Ingresando a ${FUNCNAME[0]}."
     fileSystem=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 df -h | awk '{print $1,$2,$6}' 2>/dev/null)
 	cleaned="$(clean $fileSystem)"
     echo "$cleaned"
 }
 
 function getHostname {
-    log "Ingresando a metodo getHostName"
+    log "Ingresando a ${FUNCNAME[0]}."
     hostname=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 hostname 2>/dev/null)
     echo "$hostname"
 }
 
 function getIps {
-    log "Ingresando a metodo Ips"
-    
+    log "Ingresando a ${FUNCNAME[0]}."
     ips=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  ifconfig  2>/dev/null | awk '{print $2}' | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}" 2>/dev/null )
-    
     if [ "$ips" == "" ];
     then
         ips=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 ip a 2>/dev/null | awk '{print $2}' | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}" 2>/dev/null)
@@ -444,7 +439,7 @@ function getIps {
 }
 
 function getKernel {
-    log "Ingresando a metodo GetKernel"
+    log "Ingresando a ${FUNCNAME[0]}."
     
     kernel=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "uname -r  2>/dev/null" 2>/dev/null )
     
@@ -462,7 +457,7 @@ function getKernel {
 }
 
 function getDependencies {
-    log "Ingresando a metodo GetDependencies"
+    log "Ingresando a ${FUNCNAME[0]}."
     
     dependencies=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "rpm -qa  2>/dev/null" 2>/dev/null )
     
@@ -480,7 +475,7 @@ function getDependencies {
 }
 
 function getDns {
-    log "Ingresando a metodo getDns"
+    log "Ingresando a ${FUNCNAME[0]}."
 
     dns3="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/resolv.conf |grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"  2>/dev/null)"
 
@@ -508,7 +503,7 @@ function getDns {
 }
 
 function getMysqlVersion {
-    log "Ingresando a metodo getMysqlVersion"
+    log "Ingresando a ${FUNCNAME[0]}."
     mysql=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 "$4"@"$1" "mysql --version | grep mysql | sed -e 's/ //g' 2>/dev/null" 2>/dev/null)
     cleaned="$(clean $mysql)"
     echo "$cleaned"
@@ -516,13 +511,13 @@ function getMysqlVersion {
 }
 
 function getPostgresqlVersion {
-    log "Ingresando a metodo getPostgresqlVersion"
+    log "Ingresando a ${FUNCNAME[0]}."
     postgresql=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 "$4"@"$1" "psql --version 2>/dev/null | grep psql | sed -e 's/ //g' 2>/dev/null" 2>/dev/null)
     cleaned="$(clean $postgresql)"
 }
 
 function getPostgresqlServiceState {
-    log "Ingresando a metodo getPostgresqlServiceState"
+    log "Ingresando a ${FUNCNAME[0]}."
     
     psql=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  systemctl status postgresql* | grep Active | awk '{print $1" "$2" "$3}'  2>/dev/null)
     
@@ -540,7 +535,7 @@ function getPostgresqlServiceState {
 }
 
 function getMysqlServiceState {
-    log "Ingresando a metodo getMysqlServiceState"
+    log "Ingresando a ${FUNCNAME[0]}."
 
     mysql=$(echo $3 | sshpass -p $3 ssh -o ConnectTimeout=10 -q -n  -p $2 "$4"@"$1" "sudo /etc/init.d/mysqld* status | grep mysqld 2>/dev/null" 2>/dev/null)
     
@@ -562,7 +557,7 @@ function getMysqlServiceState {
 }
 
 function reboots {
-    log "Ingresando a metodo reboots"
+    log "Ingresando a ${FUNCNAME[0]}."
     IFS=";"
     while read IP PORT USER PASS SO
     do  
@@ -605,7 +600,7 @@ function traer_archivo {
 }
 
 function file_exist {
-    log "Validando existencia de archivo $5 en $1"
+    log "Ingresando a ${FUNCNAME[0]}."
     file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  cat $5 2>/dev/null)"
     
     log "*$file*"
@@ -618,9 +613,32 @@ function file_exist {
         log "archivo $5 NO existe en $1"
     fi
 }
+
+function directory_exist {
+    log "Ingresando a ${FUNCNAME[0]}."
+    directory=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1  "if [ -d $5 ]; then echo true; else echo false;fi")
+    echo $directory
+}
+
+function generarBackups {
+	log "Ingresando a ${FUNCNAME[0]}."
+    for i in "${backups[@]}"
+    do
+		IFS=";" 
+		while read ip protocolo puerto user pass so
+		do
+			if [ "$(directory_exist $ip $puerto $pass $user $i)" == "true" ];
+			then
+				inicializar_directorio "$BACKUPS_DIRECTORY/$ip"
+				#sshpass -p $pass  ssh -o ConnectTimeout=10 -q -n -p $puerto $user@$ip "echo $pass | sudo ls /root 2>/dev/null"
+				sshpass -p $pass scp -r -P $puerto $user@$ip:"$i" "$BACKUPS_DIRECTORY/$ip/"
+			fi
+		done < $FILE_IPS_PORTS_USER_PASS_SO
+    done
+}
  
  function getJavaTomcat {
-     log "Ingresando a metodo getJavaTomcat"
+     log "Ingresando a ${FUNCNAME[0]}."
      javaVersion="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 java -version 2>/dev/null)"
      tomcatPath="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 ps -fea | grep java | grep tomcat | awk -F'-Dcatalina.home=' '{print $2}' | awk '{print $1}' 2>/dev/null)"
 
@@ -650,129 +668,8 @@ function file_exist {
      echo "$javaVersion;$javaPath;$tomcatVersion;$tomcatPath;$cleaned"
  }
 
-function generarInformeServidores_old {
-	log "Ingresando a método : ${FUNCNAME[0]}."
-    log "Iniciando generacion de informe - $(date +%H:%M)..."
-
-    echo "IP;PUERTO_SSH;SO;HOSTNAME;DNS;MYSQL_VERSION;PSQL;CPU;CPU_MODEL;RAM;IPS;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE_REPORT_HORIZONTAL 
-    
-    IFS=";"
-    
-    while read ip puerto user pass so
-    do 
-        if [ "$puerto" == "NO_SSH" ] || [ "$puerto" == "NO_PING" ] || [ "$puerto" == "" ] || [ "$user" == "unknown" ] ;
-        then
-            if [ "$puerto" == "NO_SSH" ] ;
-            then
-                ports="$(getOpenPorts $ip)"
-                win="$(windows $ip)"
-                if [ "$win" == "windows" ];
-                then
-                    echo "$ip;WINDOWS;$ports;" >> $FILE
-                else
-                    echo "$ip;$puerto;$ports;" >> $FILE
-                fi                
-            elif [ "$puerto" == "NO_PING" ] ;
-            then
-                echo "$ip;$puerto;" >> $FILE
-            elif [  "$user" == "unknown" ] ;
-            then
-                echo "$ip;$puerto;unknown credentials;" >> $FILE
-            fi
-        else
-            existe="$(blackList $ip)"
-            
-            if [ "$existe" == "existe" ];
-            then
-                log " INFORME - Servidor $ip EXISTE en lista negra. - $(date +%H:%M)..."
-                echo "$ip;$puerto;LISTA_NEGRA;" >> $FILE
-            else
-                log "Trabajando en $ip :"
-                echo "Trabajando en $ip :"
-                echo "Extrayendo version Mysql"
-                mysqlVersion="$(getMysqlVersion $ip $puerto $pass $user)"
-                echo "Extrayendo version PostgreSQL"
-                psql="$(getPostgresqlVersion $ip $puerto $pass $user)"
-                echo "Extrayendo hostname"
-                hostname="$(getHostname $ip $puerto $pass $user)"
-                echo "Extrayendo CPUs"
-                cpus="$(getCpus $ip $puerto $pass $user)"
-                echo "Extrayendo CPU Model"
-                cpu_model="$(getCpuModel $ip $puerto $pass $user)"
-                echo "Extrayendo RAM"
-                ram="$(getRam $ip $puerto $pass $user)"
-                echo "Extrayendo IPs"
-                ips="$(getIps $ip $puerto $pass $user)"
-                echo "Extrayendo Ports"
-                ports="$(getOpenPorts $ip $puerto $pass $user)"
-                echo "Extrayendo Connections"
-                connections="$(getConections $ip $puerto $pass $user)"
-                echo "Extrayendo FileSystem"
-                fileSystems="$(getFileSystem $ip $puerto $pass $user)"
-                echo "Extrayendo DNS"
-                dns="$(getDns $ip $puerto $pass $user)"
-                echo "Extrayendo version Java y Tomcat"
-                tomcat="$(getJavaTomcat $ip $puerto $pass $user)"
-                echo "Extrayendo Usuarios"
-                users="$(getUsers $ip $puerto $pass $user)"
-                echo "Extrayendo Grupos"
-                groups="$(getGroups $ip $puerto $pass $user)"
-                echo "Extrayendo Env"
-                env="$(getEnv $ip $puerto $pass $user)"
-                echo "Extrayendo Active Services"
-                activeServices="$(getActiveServices $ip $puerto $pass $user)"
-                echo "Extrayendo Routes"
-                routes="$(getRoutes $ip $puerto $pass $user)"
-                echo "Extrayendo Crones"
-                crones="$(getCrons $ip $puerto $pass $user)"
-                echo "Extrayendo SES Status"
-                sesStatus="$(getSesStatus $ip $puerto $pass $user)"
-
-                echo "$ip;$puerto;$so;$hostname;$dns;$mysqlVersion;$psql;$cpus;$cpu_model;$ram;$ips;$ports;$connections;$fileSystems;$tomcat;$users;$groups;$env;$crones" >> $FILE
-
-                echo "IP : $ip" >> $FILE_VERTICAL
-                echo "Nombre : $hostname" >> $FILE_VERTICAL
-                echo "Cantidad de CPU's : $cpus" >> $FILE_VERTICAL
-                echo "Modelo de CPU : $cpu_model" >> $FILE_VERTICAL
-                echo "Cantidad Memoria RAM : $ram" >> $FILE_VERTICAL
-                echo "Direcciones IP : $ips" >> $FILE_VERTICAL
-                echo "Puerto SSH : $puerto" >> $FILE_VERTICAL
-                echo "Puertos Abiertos : $ports" >> $FILE_VERTICAL
-                echo "Conexiones : $connections" >> $FILE_VERTICAL
-                echo "Sistema de archivos : $fileSystems" >> $FILE_VERTICAL
-                echo "Sistema Operativo : $so" >> $FILE_VERTICAL
-                echo "DNS's : $dns" >> $FILE_VERTICAL
-                echo "Versión MySql : $mysqlVersion" >> $FILE_VERTICAL
-                echo "Versión PosgreSQL : $psql" >> $FILE_VERTICAL
-                echo "Información de Tomcat : $tomcat" >> $FILE_VERTICAL
-                echo "Usuarios: $users" >> $FILE_VERTICAL
-                echo "Grupos: $groups" >> $FILE_VERTICAL
-                echo "Variables de Entorno: $env" >> $FILE_VERTICAL
-                echo "Servicios Activos: $activeServices" >> $FILE_VERTICAL
-                echo "Rutas: $routes" >> $FILE_VERTICAL
-                echo "Crones: $crones" >> $FILE_VERTICAL
-                echo "SES Status: $sesStatus" >> $FILE_VERTICAL
-                echo "" >> $FILE_VERTICAL
-
-            fi
-            
-        fi
-    done < $FILE_IPS_PORTS_USER_PASS_SO
-
-    momento="$(date +%d%m%y%H%M%S)"
-    new_name_file="$(echo $FILE | sed -e 's/.csv//g')"
-    mv $FILE $new_name_file"_$momento.csv"
-    new_name_file_vertical="$(echo $FILE_VERTICAL | sed -e 's/.txt//g')"
-    mv $FILE_VERTICAL $new_name_file_vertical"_$momento.txt"
-
-    rm -f $FILE_IPS_PORTS
-    rm -f $FILE_IPS_PORTS_USER_PASS
-    mv $FILE_IPS_PORTS_USER_PASS_SO $FILE_FINAL_LIST
-    
-    log "Terminando generación de informe bases de datos - $(date +%H:%M)..."
-    
-}
 function generarEstadisticas {
+	log "Ingresando a ${FUNCNAME[0]}."
 	echo "Estadisticas de Servidores:" >> $FILE_REPORT_STATISTICS
 	echo "Cantidad de servidores identificados : $(cat $FILE_IPS_PORTS | wc -l)" >> $FILE_REPORT_STATISTICS
 	echo "Reporte de cantidades de SO:" >> $FILE_REPORT_STATISTICS
@@ -791,10 +688,7 @@ function generarEstadisticas {
 function generarInformeServidores {
 	log "Ingresando a método : ${FUNCNAME[0]}."
 	
-	#if [ -d "$REPORTS_DIRECTORY" ];
-	#then
-		#mv "$REPORTS_DIRECTORY" "$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)"
-	#fi
+	inicializar_directorio $REPORTS_DIRECTORY
 	
     echo "IP;IPS;PROTOCOLO;PUERTO;SO;KERNEL;HOSTNAME;DNS;CPU;CPU_MODEL;RAM;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;MYSQL_VERSION;PSQL_VERSION;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE_REPORT_HORIZONTAL 
     
@@ -851,14 +745,15 @@ function generarInformeServidores {
 		echo "Puntos de Montaje: $mountPoints" >> $FILE_REPORT_VERTICAL
 		echo "Dependencias: $dependencies" >> $FILE_REPORT_VERTICAL
 		echo "" >> $FILE_REPORT_VERTICAL
-
     done < $FILE_IPS_PORTS_USER_PASS_SO
-	
+}
+
+function consolidar {
 	cp $FILE_IPS $REPORTS_DIRECTORY
 	cp $FILE_IPS_PORTS $REPORTS_DIRECTORY
 	cp $FILE_IPS_PORTS_USER_PASS $REPORTS_DIRECTORY 
 	cp $FILE_IPS_PORTS_USER_PASS_SO $REPORTS_DIRECTORY
-	mv $REPORTS_DIRECTORY $REPORTS_DIRECTORY_FINAL
+	mv $REPORTS_DIRECTORY $OUTS_DIRECTORY/$(date +%d%m%y-%H%M%S)
 }
 
 function iniciar {
@@ -879,6 +774,14 @@ function iniciar {
 	fi
 }
 
+function reiniciar {
+	rm -rf $FILE_IPS
+	rm -rf $FILE_IPS_PORTS
+	rm -rf $FILE_IPS_PORTS_USER_PASS
+	rm -rf $FILE_IPS_PORTS_USER_PASS_SO
+	rm -rf $FILE_CONF
+}
+
 
 case $1 in
   start)
@@ -886,12 +789,9 @@ case $1 in
 	inicializar_estructura
   ;;
   restart)
-	rm -rf $FILE_IPS
-	rm -rf $FILE_IPS_PORTS
-	rm -rf $FILE_IPS_PORTS_USER_PASS
-	rm -rf $FILE_IPS_PORTS_USER_PASS_SO
-	rm -rf $FILE_CONF
+	reiniciar
 	iniciar
+	inicializar_estructura
   ;;
   set-list)
 		if [ "$2" == "" ];
@@ -922,6 +822,10 @@ case $1 in
   generate-reports)
 	generarInformeServidores
 	generarEstadisticas
+	consolidar
+  ;;
+  generate-backups)
+	generarBackups
   ;;
   *)
     echo "./informer.sh start : inicia la configuración y las estructura de carpeta necesarias para funcionar"
