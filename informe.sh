@@ -3,6 +3,11 @@
 CONF_DIRECTORY="./CONF"
 FILE_CONF="$CONF_DIRECTORY/config.conf"
 
+if [ -f $FILE_CONF ];
+then
+	source $FILE_CONF
+fi
+
 function clean {
     cleaned="$(echo $1 | sed -e 's/\;/ /g' | sed -e ':a;N;$!ba;s/\n/,/g')"
     echo $cleaned
@@ -59,12 +64,12 @@ function inicializar_conf {
 	echo 'LOGS_DIRECTORY=./LOGS' >> "$FILE_CONF"
 	echo 'OUTS_DIRECTORY=./OUTS' >> "$FILE_CONF"
 	echo 'SCRIPTS_DIRECTORY=./SCRIPTS' >> "$FILE_CONF"
-	echo 'REPORTS_DIRECTORY=$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)' >> "$FILE_CONF"
-	echo 'FILE_REPORT_HORIZONTAL=$REPORTS_DIRECTORY/informe_horizontal_$(date +%d%m%y-%H%M).csv' >> "$FILE_CONF"
-	echo 'FILE_REPORT_VERTICAL=$REPORTS_DIRECTORY/informe_vertical_$(date +%d%m%y-%H%M).txt' >> "$FILE_CONF"
-	echo 'FILE_FINAL_SERVERS_LIST=$TEMP_DIRECTORY/servers_$(date +%d%m%y%H%M%S).csv' >> "$FILE_CONF"
+	echo 'REPORTS_DIRECTORY=$OUTS_DIRECTORY/$(date +%d%m%y)' >> "$FILE_CONF"
+	echo 'REPORTS_DIRECTORY_FINAL=$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)' >> "$FILE_CONF"
+	echo 'FILE_REPORT_HORIZONTAL=$REPORTS_DIRECTORY/informe_horizontal_$(date +%d%m%y).csv' >> "$FILE_CONF"
+	echo 'FILE_REPORT_VERTICAL=$REPORTS_DIRECTORY/informe_vertical_$(date +%d%m%y).txt' >> "$FILE_CONF"
+	echo 'FILE_REPORT_STATISTICS=$REPORTS_DIRECTORY/informe_estadisticas_$(date +%d%m%y).txt' >> "$FILE_CONF"
 	echo 'FILE_LOG=$LOGS_DIRECTORY/log_informe_$(date +%d%m%y).log' >> "$FILE_CONF"
-	echo 'FILE_SERVERS=$TEMP_DIRECTORY/servers_$(date +%d%m%y)' >> "$FILE_CONF"
 	echo 'FILE_CREDENTIALS=$CONF_DIRECTORY/credentials.csv' >> "$FILE_CONF"
 	echo 'FILE_IPS=$CONF_DIRECTORY/ips.csv' >> "$FILE_CONF"
 	echo 'FILE_IPS_PORTS=$CONF_DIRECTORY/ips_ports.csv' >> "$FILE_CONF"
@@ -121,7 +126,7 @@ function generarIps {
     for i in "${networks[@]}"
     do
         filtro=$(echo $i | awk -F'.' '{print $1"."$2"."$3"."}')
-		nmap -sL -n $i/24 | grep "$filtro" | grep -vw "${filtro}0\|${filtro}1\|${filtro}255" | awk '{print $5}'>> $FILE_IPS
+		nmap -sL -n $i/24 | grep "$filtro" | grep -vw "${filtro}0\|${filtro}1\|${filtro}255" | awk '{print $5}'> $FILE_IPS
     done
 }
 
@@ -403,14 +408,15 @@ function getCpus {
 
 function getMountPoints {
     log "Ingresando a metodo getMountPoints"
-    disk=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/fstab | grep -v '#'  | sed -e ':a;N;$!ba;s/\n/,/g'  2>/dev/null)
+    disk=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 cat /etc/fstab | grep -v '#'  2>/dev/null)
     echo "$disk"
 }
 
 function getFileSystem {
     log "Ingresando a metodo getFileSystem"
-    fileSystem=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 df -h | awk '{print $1,$2,$6}' | sed -e ':a;N;$!ba;s/\n/,/g' 2>/dev/null)
-    echo "$fileSystem"
+    fileSystem=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 df -h | awk '{print $1,$2,$6}' 2>/dev/null)
+	cleaned="$(clean $fileSystem)"
+    echo "$cleaned"
 }
 
 function getHostname {
@@ -433,8 +439,44 @@ function getIps {
     then
         ips=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "hostname -I 2>/dev/null" 2>/dev/null)
     fi
+    cleaned="$(clean $ips)"
+    echo "$cleaned"
+}
+
+function getKernel {
+    log "Ingresando a metodo GetKernel"
     
-    echo "$(echo $ips | sed -e 's/\;/ /g' | sed -e ':a;N;$!ba;s/\n/,/g')"
+    kernel=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "uname -r  2>/dev/null" 2>/dev/null )
+    
+    if [ "$kernel" == "" ];
+    then
+        kernel=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "cat /proc/vesion | awk '{print $3}' 2>/dev/null" 2>/dev/null)
+    fi
+
+    if [ "$kernel" == "" ];
+    then
+        kernel=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "hostname -I 2>/dev/null" 2>/dev/null)
+    fi
+    cleaned="$(clean $kernel)"
+    echo "$cleaned"
+}
+
+function getDependencies {
+    log "Ingresando a metodo GetDependencies"
+    
+    dependencies=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "rpm -qa  2>/dev/null" 2>/dev/null )
+    
+    if [ "$dependencies" == "" ];
+    then
+        dependencies=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "apt list --installed 2>/dev/null" 2>/dev/null)
+    fi
+
+    if [ "$dependencies" == "" ];
+    then
+        dependencies=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "dpkg -l | awk '{print $2":"$3}' 2>/dev/null" 2>/dev/null)
+    fi
+    cleaned="$(clean $dependencies)"
+    echo "$cleaned"
 }
 
 function getDns {
@@ -608,16 +650,11 @@ function file_exist {
      echo "$javaVersion;$javaPath;$tomcatVersion;$tomcatPath;$cleaned"
  }
 
-function generarInformeServidores {
-
+function generarInformeServidores_old {
+	log "Ingresando a método : ${FUNCNAME[0]}."
     log "Iniciando generacion de informe - $(date +%H:%M)..."
-    
-    if [ ! -f $REPORT_DIRECTORY ];
-    then
-        mkdir $REPORT_DIRECTORY
-    fi
 
-    echo "IP;PUERTO_SSH;SO;HOSTNAME;DNS;MYSQL_VERSION;PSQL;CPU;CPU_MODEL;RAM;IPS;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE 
+    echo "IP;PUERTO_SSH;SO;HOSTNAME;DNS;MYSQL_VERSION;PSQL;CPU;CPU_MODEL;RAM;IPS;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE_REPORT_HORIZONTAL 
     
     IFS=";"
     
@@ -735,16 +772,99 @@ function generarInformeServidores {
     log "Terminando generación de informe bases de datos - $(date +%H:%M)..."
     
 }
+function generarEstadisticas {
+	echo "Estadisticas de Servidores:" >> $FILE_REPORT_STATISTICS
+	echo "Cantidad de servidores identificados : $(cat $FILE_IPS_PORTS | wc -l)" >> $FILE_REPORT_STATISTICS
+	echo "Reporte de cantidades de SO:" >> $FILE_REPORT_STATISTICS
+	cat $FILE_IPS_PORTS | awk -F';' '{print $2}' | sort | uniq -c  | sed -e 's/RDP/WINDOWS/g' -e 's/SSH/LINUX/g' -e 's/NO_ACCESS_PROTOCOL/DESCONOCIDO/g' >> $FILE_REPORT_STATISTICS
+	echo "Reporte Passwords Conocidos en SO's Linux:" >> $FILE_REPORT_STATISTICS
+	cat $FILE_IPS_PORTS_USER_PASS | awk -F';' '{print $4}' | sort | uniq -c | sed -e 's/root/Conocido/g' -e 's/unknown/Desconocido/g' >> $FILE_REPORT_STATISTICS
+	echo "Reporte de SO's general:" >> $FILE_REPORT_STATISTICS
+	echo "Servidores Centos : $(cat $FILE_IPS_PORTS_USER_PASS_SO | grep CentOS | wc -l)" >> $FILE_REPORT_STATISTICS
+	echo "Servidores Red Hat : $(cat $FILE_IPS_PORTS_USER_PASS_SO | grep RedHat | wc -l)" >> $FILE_REPORT_STATISTICS
+	echo "Servidores Debian : $(cat $FILE_IPS_PORTS_USER_PASS_SO | grep Debian | wc -l)" >> $FILE_REPORT_STATISTICS
+	echo "Servidores Ubuntu : $(cat $FILE_IPS_PORTS_USER_PASS_SO | grep Ubuntu | wc -l)" >> $FILE_REPORT_STATISTICS
+	echo "Reporte de SO's específico:" >> $FILE_REPORT_STATISTICS
+	cat $FILE_IPS_PORTS_USER_PASS_SO | awk -F';' '{print $6}' | sort | uniq -c >> $FILE_REPORT_STATISTICS
+}
 
+function generarInformeServidores {
+	log "Ingresando a método : ${FUNCNAME[0]}."
+	
+	#if [ -d "$REPORTS_DIRECTORY" ];
+	#then
+		#mv "$REPORTS_DIRECTORY" "$OUTS_DIRECTORY/$(date +%d%m%y-%H%M)"
+	#fi
+	
+    echo "IP;IPS;PROTOCOLO;PUERTO;SO;KERNEL;HOSTNAME;DNS;CPU;CPU_MODEL;RAM;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;MYSQL_VERSION;PSQL_VERSION;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE_REPORT_HORIZONTAL 
+    
+    IFS=";" 
+    while read ip protocolo puerto user pass so
+    do 
+		ips="$(getIps $ip $puerto $pass $user)"
+		kernel="$(getKernel $ip $puerto $pass $user)"
+		hostname="$(getHostname $ip $puerto $pass $user)"
+		dns="$(getDns $ip $puerto $pass $user)"
+		mysqlVersion="$(getMysqlVersion $ip $puerto $pass $user)"
+		psqlVersion="$(getPostgresqlVersion $ip $puerto $pass $user)"
+		cpus="$(getCpus $ip $puerto $pass $user)"
+		cpu_model="$(getCpuModel $ip $puerto $pass $user)"
+		ram="$(getRam $ip $puerto $pass $user)"
+		ports="$(getOpenPorts $ip $puerto $pass $user)"
+		connections="$(getConections $ip $puerto $pass $user)"
+		fileSystems="$(getFileSystem $ip $puerto $pass $user)"
+		tomcat="$(getJavaTomcat $ip $puerto $pass $user)"
+		users="$(getUsers $ip $puerto $pass $user)"
+		groups="$(getGroups $ip $puerto $pass $user)"
+		env="$(getEnv $ip $puerto $pass $user)"
+		activeServices="$(getActiveServices $ip $puerto $pass $user)"
+		routes="$(getRoutes $ip $puerto $pass $user)"
+		crones="$(getCrons $ip $puerto $pass $user)"
+		sesStatus="$(getSesStatus $ip $puerto $pass $user)"
+		mountPoints="$(getMountPoints $ip $puerto $pass $user)"
+		dependencies="$(getDependencies $ip $puerto $pass $user)"
 
-case $1 in
-  start)
+		echo "$ip;$ips;$puerto;$so;$kernel;$hostname;$dns;$cpus;$cpu_model;$ram;$ports;$connections;$fileSystems;$mysqlVersion;$psqlVersion;$tomcat;$users;$groups;$env;$crones" >> $FILE_REPORT_HORIZONTAL 
+
+		echo "IP : $ip" >> $FILE_REPORT_VERTICAL
+		echo "Nombre : $hostname" >> $FILE_REPORT_VERTICAL
+		echo "Cantidad de CPU's : $cpus" >> $FILE_REPORT_VERTICAL
+		echo "Modelo de CPU : $cpu_model" >> $FILE_REPORT_VERTICAL
+		echo "Cantidad Memoria RAM : $ram" >> $FILE_REPORT_VERTICAL
+		echo "Direcciones IP : $ips" >> $FILE_REPORT_VERTICAL
+		echo "Puerto SSH : $puerto" >> $FILE_REPORT_VERTICAL
+		echo "Puertos Abiertos : $ports" >> $FILE_REPORT_VERTICAL
+		echo "Conexiones : $connections" >> $FILE_REPORT_VERTICAL
+		echo "Sistema de archivos : $fileSystems" >> $FILE_REPORT_VERTICAL
+		echo "Sistema Operativo : $so" >> $FILE_REPORT_VERTICAL
+		echo "DNS's : $dns" >> $FILE_REPORT_VERTICAL
+		echo "Versión MySql : $mysqlVersion" >> $FILE_REPORT_VERTICAL
+		echo "Versión PosgreSQL : $psql" >> $FILE_REPORT_VERTICAL
+		echo "Información de Tomcat : $tomcat" >> $FILE_REPORT_VERTICAL
+		echo "Usuarios: $users" >> $FILE_REPORT_VERTICAL
+		echo "Grupos: $groups" >> $FILE_REPORT_VERTICAL
+		echo "Variables de Entorno: $env" >> $FILE_REPORT_VERTICAL
+		echo "Servicios Activos: $activeServices" >> $FILE_REPORT_VERTICAL
+		echo "Rutas: $routes" >> $FILE_REPORT_VERTICAL
+		echo "Crones: $crones" >> $FILE_REPORT_VERTICAL
+		echo "SES Status: $sesStatus" >> $FILE_REPORT_VERTICAL
+		echo "Puntos de Montaje: $mountPoints" >> $FILE_REPORT_VERTICAL
+		echo "Dependencias: $dependencies" >> $FILE_REPORT_VERTICAL
+		echo "" >> $FILE_REPORT_VERTICAL
+
+    done < $FILE_IPS_PORTS_USER_PASS_SO
+	
+	cp $FILE_IPS $REPORTS_DIRECTORY
+	cp $FILE_IPS_PORTS $REPORTS_DIRECTORY
+	cp $FILE_IPS_PORTS_USER_PASS $REPORTS_DIRECTORY 
+	cp $FILE_IPS_PORTS_USER_PASS_SO $REPORTS_DIRECTORY
+	mv $REPORTS_DIRECTORY $REPORTS_DIRECTORY_FINAL
+}
+
+function iniciar {
     echo "Buscando configuración en : $FILE_CONF"
-	if [ -f $FILE_CONF ];
+	if [ ! -f $FILE_CONF ];
 	then
-		source $FILE_CONF
-		echo "Archivo de configuración cargado exitosamente : $FILE_CONF"
-	else
 		echo "Archivo de configuración no encontrado."
 		echo "Generando archivo de configuración."
 		inicializar_conf
@@ -757,13 +877,28 @@ case $1 in
 			echo "Imposible cargar archivo de configuración : $FILE_CONF"
 		fi
 	fi
+}
+
+
+case $1 in
+  start)
+	iniciar
 	inicializar_estructura
-    ;;
+  ;;
+  restart)
+	rm -rf $FILE_IPS
+	rm -rf $FILE_IPS_PORTS
+	rm -rf $FILE_IPS_PORTS_USER_PASS
+	rm -rf $FILE_IPS_PORTS_USER_PASS_SO
+	rm -rf $FILE_CONF
+	iniciar
+  ;;
   set-list)
-		source $FILE_CONF
 		if [ "$2" == "" ];
 		then
 			echo "Usando Ips en el archivo : $FILE_IPS"
+			sed -i '/FILE_IPS=/d' $FILE_CONF
+			echo 'FILE_IPS=$CONF_DIRECTORY/ips.csv' >> $FILE_CONF
 		elif [ "$2" == "scan" ];
 		then
 			echo "Generando Ips de los segmentos en : ${networks[*]}"
@@ -780,37 +915,18 @@ case $1 in
 		fi
     ;;
   build)
-		source $FILE_CONF
-		generarPuertosAccesoServidores
-		generarDatosAccesoServidores
-		generarSoServidores
+	generarPuertosAccesoServidores
+	generarDatosAccesoServidores
+	generarSoServidores
   ;;
   generate-reports)
-
-    ;;
- local)
-    generarListaServidores_local
-    generarSistemaOperativo
-    generarInformeServidores
-    ;;
- validacion)
-    if [ -f "$2" ];
-    then
-	    log "Archivo $2 existe."
-	    FILE_IPS="$2"
-	    generarListaServidores_file
-	    generarSistemaOperativo
-        
-    else
-	    log "Archivo $2 NO existe."
-	    echo "Archivo $2 NO existe"
-    fi
-    ;;
+	generarInformeServidores
+	generarEstadisticas
+  ;;
   *)
     echo "./informer.sh start : inicia la configuración y las estructura de carpeta necesarias para funcionar"
     echo "./informer.sh set-list [vacio|scan|ruta_file] : define de donde se va a sacar la lista de IPs, vacio asigna el archivo por defecto, scan genera las Ips de los segmentos en el archivos de configuración , finalmente la ruta asigna dicho archivo"
     echo "./informer.sh build : crea la base de datos de servidores."
-    echo "file : en atención a un listado de ips que entra como parámetro genera el informe."
-    echo "validacion: solo velida si se tiene acceso por ssh a la lista de servidores."
+	echo "./informer.sh generate-reports : Genera los reportes de las base de datso de servidores construida."
     ;;
 esac
