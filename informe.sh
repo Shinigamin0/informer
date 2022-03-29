@@ -748,10 +748,10 @@ function generarBackups {
 			if [ "$(directory_exist $ip $puerto $pass $user $i)" == "true" ];
 			then
 				inicializar_directorio "$BACKUPS_DIRECTORY/$ip"
-				#sshpass -p $pass  ssh -o ConnectTimeout=10 -q -n -p $puerto $user@$ip "echo $pass | sudo ls /root 2>/dev/null"
 				sshpass -p $pass scp -r -P $puerto $user@$ip:"$i" "$BACKUPS_DIRECTORY/$ip/"
 			fi
 		done < $FILE_IPS_PORTS_USER_PASS_SO
+		mv "$BACKUPS_DIRECTORY/$ip" "$BACKUPS_DIRECTORY/$ip_$(date +%d%m%y-%H%M%S)"
     done
 }
  
