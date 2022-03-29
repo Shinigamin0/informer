@@ -257,23 +257,68 @@ function getRoutes {
 
 function getActiveServices {
     log "Ingresando a ${FUNCNAME[0]}."
-    activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'systemctl list-units --type=service --state=active 2>/dev/null' 2>/dev/null)
+	if [ "$4" == "root" ];
+	then
+		activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "systemctl list-units --type=service --state=active 2>/dev/null" 2>/dev/null)
+		if [ "$activeServices" == "" ];
+		then
+			activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "service --status-all 2>/dev/null" 2>/dev/null)
+		fi
+	else
+		activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo systemctl list-units --type=service --state=active 2>/dev/null" 2>/dev/null)
+		if [ "$activeServices" == "" ];
+		then
+			activeServices=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo service --status-all 2>/dev/null" 2>/dev/null)
+		fi
+	fi	
     echo $activeServices
-
 }
 
-function getSesStatus {
+function getCrons  {
     log "Ingresando a ${FUNCNAME[0]}."
-    sestatus=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'sestatus 2>/dev/null' 2>/dev/null)
-    echo $sestatus
-
+	if [ "$4" == "root" ];
+	then
+		cron=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "find /var/spool/cron/ -type f -exec echo {} \; -exec cat {} \; 2>/dev/null" 2>/dev/null)
+		if [ "$cron" == "" ];
+		then
+			cron=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "cat /var/spool/cron/* 2>/dev/null" 2>/dev/null)
+		fi
+	else
+		cron=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo find /var/spool/cron/ -type f -exec echo {} \; -exec cat {} \; 2>/dev/null" 2>/dev/null)
+		if [ "$cron" == "" ];
+		then
+			cron=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo cat /var/spool/cron/* 2>/dev/null" 2>/dev/null)
+		fi
+	fi
+    echo "$cron"
 }
 
-function getCrons {
+function getTimezone  {
     log "Ingresando a ${FUNCNAME[0]}."
-    crons=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 'cat /var/spool/cron/* | grep -v "#" 2>/dev/null' 2>/dev/null)
-    cleaned="$(clean $crons)"
-    echo "$cleaned"
+	timezone=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "timedatectl 2>/dev/null" 2>/dev/null)
+	if [ "$timezone" == "" ];
+	then
+		timezone=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "cat /etc/sysconfig/clock 2>/dev/null" 2>/dev/null)
+	fi
+    echo "$timezone"
+}
+
+function getLimits {
+    log "Ingresando a ${FUNCNAME[0]}."
+    limits=$(sshpass -p $3 ssh -o ConnectTimeout=60 -q -n -p $2 $4@$1 "ulimit -a 2>/dev/null" 2>/dev/null)
+    echo "$limits"
+}
+
+function getSysConf {
+    log "Ingresando a ${FUNCNAME[0]}."
+    sysconfctl=$(sshpass -p $3 ssh -o ConnectTimeout=60 -q -n -p $2 $4@$1 "cat /etc/sysctl.conf 2>/dev/null" 2>/dev/null)
+    echo "$sysconfctl"
+}
+
+function getIpLink {
+    log "Ingresando a ${FUNCNAME[0]}."
+    ipLink=$(sshpass -p $3 ssh -o ConnectTimeout=60 -q -n -p $2 $4@$1 "ip link 2>/dev/null" 2>/dev/null)
+    echo "$ipLink"
 }
 
 function getOpenPorts {
@@ -472,6 +517,79 @@ function getDependencies {
     fi
     cleaned="$(clean $dependencies)"
     echo "$cleaned"
+}
+
+function getBlocks {
+    log "Ingresando a ${FUNCNAME[0]}."
+    lsblk=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "lsblk  2>/dev/null" 2>/dev/null )
+    echo "$lsblk"
+}
+
+function getBlockId {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		blkid=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "blkid 2>/dev/null")
+	else
+		blkid=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo blkid 2>/dev/null")
+	fi
+    echo "$blkid"
+}
+
+function getFdisk {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		fdisk=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "fdisk -l 2>/dev/null")
+	else
+		fdisk=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo fdisk -l 2>/dev/null")
+	fi
+    echo "$fdisk"
+}
+
+function getIptables {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		iptables=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "iptables -L 2>/dev/null")
+	else
+		iptables=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo iptables -L 2>/dev/null")
+	fi
+    echo "$iptables"
+}
+
+function getSesStatus {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		sestatus=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "sestatus 2>/dev/null" 2>/dev/null)
+	else
+		sestatus=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo sestatus 2>/dev/null" 2>/dev/null)
+	fi    
+    echo $sestatus
+
+}
+
+function getEnforce {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		getenforce=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "getenforce 2>/dev/null" 2>/dev/null)
+	else
+		getenforce=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo getenforce 2>/dev/null" 2>/dev/null)
+	fi    
+    echo $getenforce
+}
+
+function getAudit {
+    log "Ingresando a ${FUNCNAME[0]}."
+	if [ "$4" == "root" ];
+	then
+		audit=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "auditctl -l 2>/dev/null")
+	else
+		audit=$(sshpass -p $3  ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $3 | sudo auditctl -l 2>/dev/null")
+	fi
+    echo "$audit"
 }
 
 function getDns {
@@ -717,6 +835,14 @@ function generarInformeServidores {
 		sesStatus="$(getSesStatus $ip $puerto $pass $user)"
 		mountPoints="$(getMountPoints $ip $puerto $pass $user)"
 		dependencies="$(getDependencies $ip $puerto $pass $user)"
+		blocks="$(getBlocks $ip $puerto $pass $user)"
+		blocksId="$(getBlockId $ip $puerto $pass $user)"
+		diskList="$(getFdisk $ip $puerto $pass $user)"
+		iptables="$(getIptables $ip $puerto $pass $user)"
+		timezone="$(getTimezone $ip $puerto $pass $user)"
+		audit="$(getAudit $ip $puerto $pass $user)"
+		ipLink="$(getIpLink $ip $puerto $pass $user)"
+		limits="$(getLimits $ip $puerto $pass $user)"
 
 		echo "$ip;$ips;$puerto;$so;$kernel;$hostname;$dns;$cpus;$cpu_model;$ram;$ports;$connections;$fileSystems;$mysqlVersion;$psqlVersion;$tomcat;$users;$groups;$env;$crones" >> $FILE_REPORT_HORIZONTAL 
 
@@ -725,11 +851,21 @@ function generarInformeServidores {
 		echo "Cantidad de CPU's : $cpus" >> $FILE_REPORT_VERTICAL
 		echo "Modelo de CPU : $cpu_model" >> $FILE_REPORT_VERTICAL
 		echo "Cantidad Memoria RAM : $ram" >> $FILE_REPORT_VERTICAL
+		echo "Zona Hoaria:" >> $FILE_REPORT_VERTICAL
+		echo "$timezone" >> $FILE_REPORT_VERTICAL
+		echo "Limites:" >> $FILE_REPORT_VERTICAL
+		echo "$limits" >> $FILE_REPORT_VERTICAL
 		echo "Direcciones IP : $ips" >> $FILE_REPORT_VERTICAL
 		echo "Puerto SSH : $puerto" >> $FILE_REPORT_VERTICAL
 		echo "Puertos Abiertos : $ports" >> $FILE_REPORT_VERTICAL
 		echo "Conexiones : $connections" >> $FILE_REPORT_VERTICAL
+		echo "Listado de discos:" >> $FILE_REPORT_VERTICAL
+		echo "$diskList" >> $FILE_REPORT_VERTICAL
 		echo "Sistema de archivos : $fileSystems" >> $FILE_REPORT_VERTICAL
+		echo "Bloques:">> $FILE_REPORT_VERTICAL
+		echo "$blocks:">> $FILE_REPORT_VERTICAL
+		echo "Identificadores de bloques:">> $FILE_REPORT_VERTICAL
+		echo "$blocksId">> $FILE_REPORT_VERTICAL
 		echo "Sistema Operativo : $so" >> $FILE_REPORT_VERTICAL
 		echo "DNS's : $dns" >> $FILE_REPORT_VERTICAL
 		echo "Versión MySql : $mysqlVersion" >> $FILE_REPORT_VERTICAL
@@ -738,12 +874,22 @@ function generarInformeServidores {
 		echo "Usuarios: $users" >> $FILE_REPORT_VERTICAL
 		echo "Grupos: $groups" >> $FILE_REPORT_VERTICAL
 		echo "Variables de Entorno: $env" >> $FILE_REPORT_VERTICAL
-		echo "Servicios Activos: $activeServices" >> $FILE_REPORT_VERTICAL
-		echo "Rutas: $routes" >> $FILE_REPORT_VERTICAL
-		echo "Crones: $crones" >> $FILE_REPORT_VERTICAL
-		echo "SES Status: $sesStatus" >> $FILE_REPORT_VERTICAL
-		echo "Puntos de Montaje: $mountPoints" >> $FILE_REPORT_VERTICAL
-		echo "Dependencias: $dependencies" >> $FILE_REPORT_VERTICAL
+		echo "Servicios Activos:" >> $FILE_REPORT_VERTICAL
+		echo "$activeServices" >> $FILE_REPORT_VERTICAL
+		echo "Rutas:" >> $FILE_REPORT_VERTICAL
+		echo "$routes" >> $FILE_REPORT_VERTICAL
+		echo "Reglas Firewall:" >> $FILE_REPORT_VERTICAL
+		echo "$iptables" >> $FILE_REPORT_VERTICAL
+		echo "Crones:" >> $FILE_REPORT_VERTICAL
+		echo "$crones" >> $FILE_REPORT_VERTICAL
+		echo "SES Status:" >> $FILE_REPORT_VERTICAL
+		echo "$sesStatus" >> $FILE_REPORT_VERTICAL
+		echo "Puntos de Montaje:" >> $FILE_REPORT_VERTICAL
+		echo "$mountPoints" >> $FILE_REPORT_VERTICAL
+		echo "Dependencias:" >> $FILE_REPORT_VERTICAL
+		echo "$dependencies" >> $FILE_REPORT_VERTICAL
+		echo "Reglas Auditoria:" >> $FILE_REPORT_VERTICAL
+		echo "$audit" >> $FILE_REPORT_VERTICAL
 		echo "" >> $FILE_REPORT_VERTICAL
     done < $FILE_IPS_PORTS_USER_PASS_SO
 }
@@ -832,5 +978,7 @@ case $1 in
     echo "./informer.sh set-list [vacio|scan|ruta_file] : define de donde se va a sacar la lista de IPs, vacio asigna el archivo por defecto, scan genera las Ips de los segmentos en el archivos de configuración , finalmente la ruta asigna dicho archivo"
     echo "./informer.sh build : crea la base de datos de servidores."
 	echo "./informer.sh generate-reports : Genera los reportes de las base de datso de servidores construida."
+	echo "./informer.sh generate-backups : Genera los reportes de las base de datso de servidores construida."
+	
     ;;
 esac
