@@ -429,9 +429,10 @@ function getPostgresqlService {
 
 function getRam {
     log "Ingresando a ${FUNCNAME[0]}."
-    memory=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 echo $(grep MemTotal /proc/meminfo |awk '{print $2}') / 1024^2 | bc 2>/dev/null)
-    cleaned="$(clean $memory)"
-    echo $cleaned"GB"
+    memory=$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "cat /proc/meminfo | grep MemTotal")
+	memory_in_kbs=$(echo $memory | awk '{print $2}')
+	memory_in_gbs=$(echo "$memory_in_kbs/1024/1024" |bc )
+    echo $memory_in_gbs"GB"
 }
 
 function getCpuModel {
@@ -808,7 +809,7 @@ function generarInformeServidores {
 	
 	inicializar_directorio $REPORTS_DIRECTORY
 	
-    echo "IP;IPS;PROTOCOLO;PUERTO;SO;KERNEL;HOSTNAME;DNS;CPU;CPU_MODEL;RAM;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;MYSQL_VERSION;PSQL_VERSION;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES;CRONES" >> $FILE_REPORT_HORIZONTAL 
+    echo "IP;IPS;PROTOCOLO;PUERTO;SO;KERNEL;HOSTNAME;DNS;CPU;CPU_MODEL;RAM;OPEN_PORTS;CONNECTIONS;FILE_SYSTEMS;MYSQL_VERSION;PSQL_VERSION;JAVA_VERSION;JAVA_PATH;TOMCAT_VERSION;TOMCAT_PATH;TOMCAT_APPS;USUARIOS;GRUPOS;VARIABLES" >> $FILE_REPORT_HORIZONTAL 
     
     IFS=";" 
     while read ip protocolo puerto user pass so
@@ -844,7 +845,7 @@ function generarInformeServidores {
 		ipLink="$(getIpLink $ip $puerto $pass $user)"
 		limits="$(getLimits $ip $puerto $pass $user)"
 
-		echo "$ip;$ips;$puerto;$so;$kernel;$hostname;$dns;$cpus;$cpu_model;$ram;$ports;$connections;$fileSystems;$mysqlVersion;$psqlVersion;$tomcat;$users;$groups;$env;$crones" >> $FILE_REPORT_HORIZONTAL 
+		echo "$ip;$ips;$protocolo;$puerto;$so;$kernel;$hostname;$dns;$cpus;$cpu_model;$ram;$ports;$connections;$fileSystems;$mysqlVersion;$psqlVersion;$tomcat;$users;$groups;$env" >> $FILE_REPORT_HORIZONTAL 
 
 		echo "IP : $ip" >> $FILE_REPORT_VERTICAL
 		echo "Nombre : $hostname" >> $FILE_REPORT_VERTICAL
