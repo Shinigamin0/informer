@@ -145,7 +145,7 @@ function getAccessPort {
 	then
 		for j in "${rdp_ports[@]}"
 		do
-			flag=$(nmap -Pn -host-timeout 20s -p $j $1|grep 'open\|filtered'|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
+			flag=$(nmap -Pn -host-timeout 20s -p $j $1|grep 'open'|grep tcp|awk '{print $1}'|sed 's/\/tcp//g'|sort|uniq)
 			if [ ! "$flag" == "" ] ;
 			then
 				port="RDP;$j"
@@ -752,8 +752,8 @@ function generarBackups {
 				sshpass -p $pass scp -r -P $puerto $user@$ip:"$i" "$BACKUPS_DIRECTORY/$ip/"
 			fi
 		done < $FILE_IPS_PORTS_USER_PASS_SO
-		mv "$BACKUPS_DIRECTORY/$ip" "$BACKUPS_DIRECTORY/$ip_$(date +%d%m%y-%H%M%S)"
     done
+	mv "$BACKUPS_DIRECTORY/$ip" "$BACKUPS_DIRECTORY/$ip_$(date +%d%m%y-%H%M%S)"
 }
  
  function getJavaTomcat {
@@ -789,6 +789,7 @@ function generarBackups {
 
 function generarEstadisticas {
 	log "Ingresando a ${FUNCNAME[0]}."
+	inicializar_directorio $REPORTS_DIRECTORY
 	echo "Estadisticas de Servidores:" >> $FILE_REPORT_STATISTICS
 	echo "Cantidad de servidores identificados : $(cat $FILE_IPS_PORTS | wc -l)" >> $FILE_REPORT_STATISTICS
 	echo "Reporte de cantidades de SO:" >> $FILE_REPORT_STATISTICS
