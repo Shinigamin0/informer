@@ -930,6 +930,18 @@ function reiniciar {
 	rm -rf $FILE_CONF
 }
 
+function rutinaBase {
+        log "Ingresando a método : ${FUNCNAME[0]}."
+
+        inicializar_directorio $REPORTS_DIRECTORY
+
+        IFS=";"
+        while read ip protocolo puerto user pass so
+        do
+		echo "Acción de la rutina..."
+                #salida="$(metodo$ip $puerto $pass $user)"
+        done < $FILE_IPS_PORTS_USER_PASS_SO
+}
 
 case $1 in
   start)
@@ -976,11 +988,11 @@ case $1 in
 	generarBackups
   ;;
   *)
-    echo "./informer.sh start : inicia la configuración y las estructura de carpeta necesarias para funcionar"
-    echo "./informer.sh set-list [vacio|scan|ruta_file] : define de donde se va a sacar la lista de IPs, vacio asigna el archivo por defecto, scan genera las Ips de los segmentos en el archivos de configuración , finalmente la ruta asigna dicho archivo"
-    echo "./informer.sh build : crea la base de datos de servidores."
-	echo "./informer.sh generate-reports : Genera los reportes de las base de datso de servidores construida."
-	echo "./informer.sh generate-backups : Genera los reportes de las base de datso de servidores construida."
+    	echo "./informer.sh start : inicia la configuración y las estructura de carpeta necesarias para funcionar"
+	echo "./informer.sh set-list [vacio|scan|ruta_file] : define de donde se va a sacar la lista de IPs, vacio asigna el archivo por defecto, scan genera las Ips de los segmentos en el archivos de configuración , finalmente la ruta asigna dicho archivo"
+	echo "./informer.sh build : crea la base de datos de servidores."
+	echo "./informer.sh generate-reports : Genera los reportes de las base de datos de servidores construida."
+	echo "./informer.sh generate-backups : Genera las copias de seguridad de las base de datos de servidores construida."
 	
     ;;
 esac
