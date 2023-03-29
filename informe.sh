@@ -939,6 +939,43 @@ function rutinaBase {
         while read ip protocolo puerto user pass so
         do
 		echo "Acción de la rutina..."
+                #salida="$(metodo $ip $puerto $pass $user)"
+        done < $FILE_IPS_PORTS_USER_PASS_SO
+}
+
+function copy_ssh_key {
+    log "Ingresando a ${FUNCNAME[0]}."
+    out="$(sshpass -p $3 ssh-copy-id -o StrictHostKeyChecking=no $4@$1 2>/dev/null)"
+    log "*$out*"
+}
+
+function create_user {
+    log "Ingresando a ${FUNCNAME[0]}."
+    out="$(file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 adduser $5 2>/dev/null)")"
+    log "*$out*"
+}
+
+function set_user_password {
+    log "Ingresando a ${FUNCNAME[0]}."
+    out="$(file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 passwd $5 $6 2>/dev/null)")"
+    log "*$out*"
+}
+
+function add_user_wheel {
+    log "Ingresando a ${FUNCNAME[0]}."
+    out="$(file="$(sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 usermod -a -G wheel $5 2>/dev/null)")"
+    log "*$out*"
+}
+
+function rutinaBase {
+        log "Ingresando a método : ${FUNCNAME[0]}."
+
+        inicializar_directorio $REPORTS_DIRECTORY
+
+        IFS=";"
+        while read ip protocolo puerto user pass so
+        do
+		echo "Acción de la rutina..."
                 #salida="$(metodo$ip $puerto $pass $user)"
         done < $FILE_IPS_PORTS_USER_PASS_SO
 }
