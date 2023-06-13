@@ -967,6 +967,14 @@ function add_user_wheel {
     log "*$out*"
 }
 
+function create_sudo_user_centos {
+    log "Ingresando a ${FUNCNAME[0]}."
+	sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "useradd $5" 2>/dev/null
+	sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "echo $5 >> /etc/security/ssh_us.allow" 2>/dev/null
+	sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "usermod -aG wheel $5" 2>/dev/null
+	sshpass -p $3 ssh -o ConnectTimeout=10 -q -n -p $2 $4@$1 "yes $6 | passwd  $5" 2>/dev/null
+}
+
 function rutinaBase {
         log "Ingresando a método : ${FUNCNAME[0]}."
 
