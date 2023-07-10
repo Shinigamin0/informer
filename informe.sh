@@ -124,7 +124,7 @@ function generarIps {
     for i in "${networks[@]}"
     do
         filtro=$(echo $i | awk -F'.' '{print $1"."$2"."$3"."}')
-		nmap -sL -n $i/24 | grep "$filtro" | grep -vw "${filtro}0\|${filtro}1\|${filtro}255" | awk '{print $5}'> $FILE_IPS
+		nmap -sL -n $i/24 | grep "$filtro" | grep -vw "${filtro}0\|${filtro}1\|${filtro}255" | awk '{print $5}'>> $FILE_IPS
     done
 }
 
