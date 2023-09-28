@@ -1,0 +1,13 @@
+---
+- name: Obtener hora de los servidores
+  hosts: all
+
+  tasks:
+    - name: Obtener la hora del servidor
+      command: date
+      register: output
+
+    - name: Mostrar la hora obtenida
+      debug:
+        var: output.stdout_lines
+

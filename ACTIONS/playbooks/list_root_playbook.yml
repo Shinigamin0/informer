@@ -1,0 +1,14 @@
+---
+- name: Listar directorio /root en los servidores
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Listar directorio /root
+      command: ls /root
+      register: output
+
+    - name: Mostrar la salida del comando
+      debug:
+        var: output.stdout_lines
+

@@ -1,0 +1,8 @@
+---
+- name: Prueba de conectividad
+  hosts: all  # Ejecutar en todos los hosts del inventario
+
+  tasks:
+    - name: Realizar ping
+      ping:
+
